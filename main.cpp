@@ -8,8 +8,11 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 void debugPrint();
 
-float xPosition = 0.0f;
-float yPosition = 0.0f;
+float xPosition1 = 0.0f;
+float yPosition1 = 0.0f;
+
+float xPosition2 = 0.0f;
+float yPosition2 = 0.0f;
 
 int main()
 {
@@ -39,8 +42,8 @@ int main()
     //include shader files
     Shader ourShader ("/Users/plee/Waves/shader.vs", "/Users/plee/Waves/shader.fs");
     //Get location of uniform float/setup position float for CPU
-    int horizontalPos = glGetUniformLocation(ourShader.ID, "xTransform");
-    int verticalPos = glGetUniformLocation(ourShader.ID, "yTransform");
+    int position = glGetUniformLocation(ourShader.ID, "position");
+    int startingOffset = glGetUniformLocation(ourShader.ID, "startingOffset");
 
     float vertices[] = {
         0.10f,  0.25f, 0.0f,  // top right
@@ -52,7 +55,7 @@ int main()
     unsigned int indices[]
     {
         0, 1, 3,
-        1, 2, 3
+        1, 2, 3,
     };
 
     //initialize vertex array object and bind it for later use in render loop
@@ -86,9 +89,12 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         ourShader.use();
-        glUniform1f(horizontalPos, xPosition);
-        glUniform1f(verticalPos, yPosition);
         glBindVertexArray(VAO);
+
+        glUniform2f(position, xPosition1, yPosition1);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        glUniform2f(position, xPosition2, yPosition2);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
@@ -115,55 +121,67 @@ void processInput(GLFWwindow *window)
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
     {
-        if (xPosition <= -1.0f)
+        if (xPosition1 <= -1.0f)
         {
             std::cout << "xPosition at left bounds." << "\n";
         }
         else
         {
-            xPosition -= 0.01f;
-            debugPrint();
+            xPosition1 -= 0.01f;
+            debugPrint(&xPosition1);
         }
     }
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
     {
-        if (xPosition >= 1.0f)
+        if (xPosition1 >= 1.0f)
         {
             std::cout << "xPosition at right bounds." << "\n";
         }
         else
         {
-            xPosition += 0.01f;
+            xPosition1 += 0.01f;
             debugPrint();
         }
     }
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
     {
-        if (yPosition >= 1.0f)
+        if (yPosition1 >= 1.0f)
         {
             std::cout << "yPosition at upper bounds." << "\n";
         }
         else
         {
-            yPosition += 0.01f;
+            yPosition1 += 0.01f;
             debugPrint();
         }
     }
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
     {
-        if (yPosition <= -1.0f)
+        if (yPosition1 <= -1.0f)
         {
             std::cout << "yPosition at lower bounds." << "\n";
         }
         else
         {
-            yPosition -= 0.01f;
+            yPosition1 -= 0.01f;
+            debugPrint();
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
+        if (xPosition2 <= -1.0f)
+        {
+            std::cout << "xPosition at left bounds." << "\n";
+        }
+        else
+        {
+            xPosition2 -= 0.01f;
             debugPrint();
         }
     }
 }
 
-void debugPrint()
+void debugPrint(float* xPosition, float* yPosition)
 {
     std::cout << "\r\033[KxPosition: " << xPosition << " | yPosition: " << yPosition << std::flush;
 }
