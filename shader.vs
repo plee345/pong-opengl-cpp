@@ -6,7 +6,7 @@ uniform vec2 startingOffset;
 
 void cube()
 {
-    gl_Position = vec4((aPos.x + position.x))
+    //gl_Position = vec4((aPos.x + position.x));
 }
 
 void main()
