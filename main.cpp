@@ -89,7 +89,7 @@ int main()
     while (!glfwWindowShouldClose(window))
     {
         processInput(window);
-
+        checkBoundsCollision(&xPositionRight, &yPositionRight, &xPositionLeft, &yPositionLeft, &xPositionBall, &yPositionBall);
         debugPrint(&xPositionRight, &yPositionRight, &xPositionLeft, &yPositionLeft, &xPositionBall, &yPositionBall);
 
         glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
