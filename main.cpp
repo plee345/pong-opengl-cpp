@@ -45,7 +45,7 @@ int main()
     }
 
     //include shader files
-    Shader ourShader ("/Users/plee/Waves/shader.vs", "/Users/plee/Waves/shader.fs");
+    Shader ourShader ("shader.vs", "shader.fs");
     //Get location of uniform float/setup position float for CPU
     int position = glGetUniformLocation(ourShader.ID, "position");
     //int startingOffset = glGetUniformLocation(ourShader.ID, "startingOffset");
