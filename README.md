@@ -11,3 +11,4 @@ make        # build the project
 make run    # run the application
 make clean  # remove executable and object files
 make all    # clean, rebuild, and run
+```
