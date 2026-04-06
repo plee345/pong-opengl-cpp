@@ -20,6 +20,8 @@ float yPositionLeft = 0.0f;
 float xPositionBall = 0.0f;
 float yPositionBall = 0.0f;
 
+int shapeState;
+
 int main()
 {
     glfwInit();
@@ -48,42 +50,63 @@ int main()
     Shader ourShader ("shader.vs", "shader.fs");
     //Get location of uniform float/setup position float for CPU
     int position = glGetUniformLocation(ourShader.ID, "position");
+    int shapeWho = glGetUniformLocation(ourShader.ID, "shapeWho");
     //int startingOffset = glGetUniformLocation(ourShader.ID, "startingOffset");
 
-    float vertices[] = {
+    float vertices[] = 
+    {
         0.10f,  0.25f, 0.0f,  // top right
         0.10f, -0.25f, 0.0f,  // bottom right
         -0.10f, -0.25f, 0.0f,  // bottom left
-        -0.10f,  0.25f, 0.0f   // top left 
+        -0.10f,  0.25f, 0.0f,   // top left 
+    
+        0.10f, 0.10f, 0.0f,
+        0.10f, -0.10f, 0.0f,
+        -0.10f, -0.10f, 0.0f,
+        -0.10f, 0.10f, 0.0f
     };
+
     
     unsigned int indices[]
     {
-        0, 1, 3,
-        1, 2, 3,
+        0, 1, 3, 1, 2, 3, //paddle
+        4, 5, 7, 5, 6, 7
     };
-
-    //initialize vertex array object and bind it for later use in render loop
-    unsigned int VAO;
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    //initialize vertex buffer object
-    unsigned int VBO;
-    glGenBuffers(1, &VBO);
-    //bind vertex data to the vertex buffer object
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // initialize element buffer object
     unsigned int EBO;
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    //initialize vertex array object and bind it for later use in render loop
+    unsigned int VAO1;
+    glGenVertexArrays(1, &VAO1);
+    glBindVertexArray(VAO1);
 
-    //set vertex attributes
+    unsigned int VBO1;
+    glGenBuffers(1, &VBO1);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO1);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);  
+    glEnableVertexAttribArray(0);
+    
+    // unsigned int VAO2;
+    // glGenVertexArrays(1, &VAO2);
+    // glBindVertexArray(VAO2);
+
+    // //initialize vertex buffer object
+    // unsigned int VBO2;
+    // glGenBuffers(1, &VBO2);
+    // glBindBuffer(GL_ARRAY_BUFFER, VBO2);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(verticesSquare), verticesSquare, GL_STATIC_DRAW);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    // glEnableVertexAttribArray(0);  
+    
+    debugPrint(&xPositionRight, &yPositionRight, &xPositionLeft, &yPositionLeft, &xPositionBall, &yPositionBall);
 
     //rendering loop
     while (!glfwWindowShouldClose(window))
@@ -96,22 +119,29 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         ourShader.use();
-        glBindVertexArray(VAO);
-
+        //paddles
+        glBindVertexArray(VAO1);
+        shapeState = 1;
+        glUniform1f(shapeWho, shapeState);
         glUniform2f(position, xPositionRight, yPositionRight);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+        glUniform1f(shapeWho, shapeState);
         glUniform2f(position, xPositionLeft, yPositionLeft);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
+        
+        shapeState = 0;
+        glUniform1f(shapeWho, shapeState);
         glUniform2f(position, xPositionBall, yPositionBall);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(6 * sizeof(unsigned int)));
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &VAO1);
+    //glDeleteVertexArrays(1, &VAO2);
+    glDeleteBuffers(1, &VBO1);
+    //glDeleteBuffers(1, &VBO2);
 
     glfwTerminate();
     return 0;
