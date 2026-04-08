@@ -4,12 +4,20 @@
 #include <cmath>
 #include "shader_s.h"
 
+enum state
+{
+    leftPaddleCollision, rightPaddleCollision, noCollision, leftGoal, rightGoal
+};
+typedef enum state State;
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 void debugPrint(float* xPositionRight, float* yPositionRight, float* xPositionLeft, float* yPositionLeft, float* xPositionBall, float* yPositionBall);
 
-void checkBallCollision(float* xPositionPaddle, float* yPositionPaddle, float* xPositionBall, float*yPositionBall);
+State checkBallCollision(float* xPositionPaddle, float* yPositionPaddle, float* xPositionBall, float*yPositionBall);
 void checkBoundsCollision(float* xPositionRight, float* yPositionRight, float* xPositionLeft, float* yPositionLeft, float* xPositionBall, float* yPositionBall);
+
+void ballMovement(float* xPositionBall, float* yPositionBall);
 
 float xPositionRight = 0.95f;
 float yPositionRight = 0.0f;
@@ -117,7 +125,7 @@ int main()
     {
         processInput(window);
         checkBoundsCollision(&xPositionRight, &yPositionRight, &xPositionLeft, &yPositionLeft, &xPositionBall, &yPositionBall);
-        debugPrint(&xPositionRight, &yPositionRight, &xPositionLeft, &yPositionLeft, &xPositionBall, &yPositionBall);
+        ballMovement(&xPositionBall, &yPositionBall);
 
         glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -154,64 +162,90 @@ int main()
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
+    screenRatio = (float)width / (float)height;
     glViewport(0,0,width,height);
 }
 
-void checkBallCollision(float* xPositionPaddle, float* yPositionPaddle, float* xPositionBall, float*yPositionBall)
+void checkBoundsCollision(float* xPositionRight, float* yPositionRight, float* xPositionLeft, float* yPositionLeft, float* xPositionBall, float* yPositionBall)
+{
+    if (*yPositionRight >= 0.76f)
+    {
+        std::cout << "yPositionRight at upper bounds." << std::endl;
+        *yPositionRight = 0.75f;
+    }
+    if (*yPositionRight <= -0.76f)
+    {
+        std::cout << "yPositionRight at lower bounds." << std::endl;
+        *yPositionRight = -0.75f;
+    }
+    if (*yPositionLeft >= 0.76f)
+    {
+        std::cout << "yPositionLeft at upper bounds." << std::endl;
+        *yPositionLeft = 0.75f;
+    }
+    if (*yPositionLeft <= -0.76f)
+    {
+        std::cout << "\nyPositionLeft at lower bounds." << std::endl;
+        *yPositionLeft = -0.75f;
+    }
+    if (*yPositionBall >= 0.76f)
+    {
+        std::cout << "\nyPositionBall at upper bounds." << std::endl;
+        *yPositionBall = 0.75f;
+    }
+    if (*yPositionBall <= -0.76f)
+    {
+        std::cout << "\nyPositionBall at lower bounds." << std::endl;
+        *yPositionBall = -0.75f;
+    }
+    if (*xPositionBall >= 0.95f)
+    {
+        std::cout << "\nGOAL FOR LEFT PADDLE" << std::endl;
+        *xPositionBall = 0.00f;
+    }
+    if (*xPositionBall <= -0.95f)
+    {
+        std::cout << "\nGOAL FOR RIGHT PADDLE" << std::endl;
+        *xPositionBall = 0.00f;
+    }
+}
+
+State checkBallCollision(float* xPositionPaddle, float* yPositionPaddle, float* xPositionBall, float*yPositionBall)
 {
     float result;
     //distance formula
     result = sqrt(pow((*xPositionPaddle - *xPositionBall), 2) - 
              pow((*yPositionPaddle - *yPositionBall), 2));
+    /*
+    The idea with this collision system is to find the distance between the bvall and a paddle, then if the result is 0, that indicates a collision
+    This system works in states, like an elevator.
+    */
     if (result <= 0.00f)
     {
-        *xPositionBall *= -1;
-        *yPositionBall *= -1;
+        if (*xPositionBall > 0.00f) //right collision
+        {
+            return rightPaddleCollision;
+        }
+        return leftPaddleCollision; //assume left collision
     }
+    return noCollision;
 }
 
-void checkBoundsCollision(float* xPositionRight, float* yPositionRight, float* xPositionLeft, float* yPositionLeft, float* xPositionBall, float* yPositionBall)
+void ballMovement(float* xPositionBall, float* yPositionBall)
 {
-    if (*yPositionRight >= 0.75f)
+    float velocity = 0.0f;
+    State ballState;
+
+    ballState = checkBallCollision(&xPositionRight, &yPositionRight, xPositionBall , yPositionBall);
+    if (ballState == rightPaddleCollision || ballState == leftPaddleCollision)
     {
-        std::cout << "yPositionRight at upper bounds." << std::endl;
-        *yPositionRight = 0.75f;
+        velocity *= -1.00f;
     }
-    if (*yPositionRight <= -0.75f)
-    {
-        std::cout << "yPositionRight at lower bounds." << std::endl;
-        *yPositionRight = -0.75f;
-    }
-    if (*yPositionLeft >= 0.75f)
-    {
-        std::cout << "yPositionLeft at upper bounds." << std::endl;
-        *yPositionLeft = 0.75f;
-    }
-    if (*yPositionLeft <= -0.75f)
-    {
-        std::cout << "yPositionLeft at lower bounds." << std::endl;
-        *yPositionLeft = -0.75f;
-    }
-    if (*yPositionBall >= 0.75f)
-    {
-        std::cout << "yPositionBall at upper bounds." << std::endl;
-        *yPositionBall = 0.75f;
-    }
-    if (*yPositionBall <= -0.75f)
-    {
-        std::cout << "yPositionBall at lower bounds." << std::endl;
-        *yPositionBall = 0.75f;
-    }
-    if (*xPositionBall >= 0.95f)
-    {
-        //std::cout << "xPositionBall at right bounds." << std::endl;
-        *xPositionBall = 0.95f;
-    }
-    if (*xPositionBall <= -0.95f)
-    {
-        std::cout << "xPositionBall at left bounds." << std::endl;
-        *xPositionBall = 0.95f;
-    }
+    //*xPositionBall += -0.01f;
+    //*xPositionBall += velocity;
+    //Figure out y-axis collision later
+    // if (*yPositionBall > 0.00f) {*yPositionBall += -0.00f;}
+    // else {*yPositionBall += 0.01f;}
 }
 
 void processInput(GLFWwindow *window)
