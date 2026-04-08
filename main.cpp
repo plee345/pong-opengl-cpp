@@ -21,6 +21,10 @@ float xPositionBall = 0.0f;
 float yPositionBall = 0.0f;
 
 int shapeState;
+int width = 800;
+int height = 600;
+
+float screenRatio = (float)width / (float)height;
 
 int main()
 {
@@ -51,7 +55,7 @@ int main()
     //Get location of uniform float/setup position float for CPU
     int position = glGetUniformLocation(ourShader.ID, "position");
     int shapeWho = glGetUniformLocation(ourShader.ID, "shapeWho");
-    //int startingOffset = glGetUniformLocation(ourShader.ID, "startingOffset");
+    float aspectScreen = glGetUniformLocation(ourShader.ID, "aspectRatio");
 
     float vertices[] = 
     {
@@ -119,8 +123,9 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         ourShader.use();
-        //paddles
-        glBindVertexArray(VAO1);
+        glBindVertexArray(VAO);
+        glUniform1f(aspectScreen, screenRatio);
+        //Paddles
         shapeState = 1;
         glUniform1f(shapeWho, shapeState);
         glUniform2f(position, xPositionRight, yPositionRight);
