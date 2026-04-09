@@ -83,7 +83,7 @@ int main()
     unsigned int indices[]
     {
         0, 1, 3, 1, 2, 3, //paddle
-        4, 5, 7, 5, 6, 7
+        4, 5, 7, 5, 6, 7  //ball
     };
 
     // initialize element buffer object
@@ -171,17 +171,17 @@ void checkBoundsCollision(float* xPositionRight, float* yPositionRight, float* x
 {
     if (*yPositionRight >= 0.76f)
     {
-        std::cout << "yPositionRight at upper bounds." << std::endl;
+        std::cout << "\nyPositionRight at upper bounds." << std::endl;
         *yPositionRight = 0.75f;
     }
     if (*yPositionRight <= -0.76f)
     {
-        std::cout << "yPositionRight at lower bounds." << std::endl;
+        std::cout << "\nyPositionRight at lower bounds." << std::endl;
         *yPositionRight = -0.75f;
     }
     if (*yPositionLeft >= 0.76f)
     {
-        std::cout << "yPositionLeft at upper bounds." << std::endl;
+        std::cout << "\nyPositionLeft at upper bounds." << std::endl;
         *yPositionLeft = 0.75f;
     }
     if (*yPositionLeft <= -0.76f)
@@ -217,6 +217,7 @@ State checkBallCollision(float* xPositionPaddle, float* yPositionPaddle, float* 
     //distance formula
     result = sqrt(pow((*xPositionPaddle - *xPositionBall), 2) - 
              pow((*yPositionPaddle - *yPositionBall), 2));
+    
     /*
     The idea with this collision system is to find the distance between the bvall and a paddle, then if the result is 0, that indicates a collision
     This system works in states, like an elevator.
