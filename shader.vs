@@ -24,10 +24,10 @@ void main()
 
 void rectangle()
 {
-    gl_Position = vec4((aPos.x / aspectRatio) + position.x, (aPos.y + position.y), aPos.z, 1.0);
+    gl_Position = vec4((aPos.x / aspectRatio) + position.x, ((aPos.y / aspectRatio) + position.y), aPos.z, 1.0);
 }
 
 void cube()
 {
-    gl_Position = vec4((aPos.x / aspectRatio) + position.x, aPos.y + position.y, aPos.z, 1.0);
+    gl_Position = vec4((aPos.x / aspectRatio) + position.x, ((aPos.y / aspectRatio) + position.y), aPos.z, 1.0);
 }

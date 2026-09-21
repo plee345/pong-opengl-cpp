@@ -2,48 +2,64 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 #include "shader_s.h"
 
-enum state
+struct AABB
 {
-    leftPaddleCollision, rightPaddleCollision, topWallCollision, bottomWallCollision, noCollision, leftGoal, rightGoal
+    float minX;
+    float maxX;
+    float minY;
+    float maxY;
 };
-typedef enum state State;
+typedef struct AABB aabb;
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
-void debugPrint(float* xPositionRight, float* yPositionRight, float* xPositionLeft, float* yPositionLeft, float* xPositionBall, float* yPositionBall);
+struct Paddle
+{
+    float x;
+    float y;
+    float minX;
+    float maxX;
+    float minY;
+    float maxY;
+    float moveSpeed;
+};
+typedef struct Paddle paddle;
 
-State checkBallCollision(float* xPositionPaddle, float* yPositionPaddle, float* xPositionBall, float*yPositionBall);
-void checkBoundsCollision(float* xPositionRight, float* yPositionRight, float* xPositionLeft, float* yPositionLeft, float* xPositionBall, float* yPositionBall);
-void makeHitBox(float* xPosition, float* yPosition, float vertices[]);
-
-void ballMovement(float* xPositionBall, float* yPositionBall);
-
-State ballState = checkBallCollision(&xPositionRight, &yPositionRight, &xPositionBall, &yPositionBall);
-
-float xPositionRight = 0.95f;
-float yPositionRight = 0.0f;
-float rightHitBox[];   
-
-float xPositionLeft = -0.95f;
-float yPositionLeft = 0.0f;
-float leftHitBox[];
-
-float xPositionBall = 0.0f;
-float yPositionBall = 0.0f;
-float ballHitBox[];
+struct Ball
+{
+    float x;
+    float y;
+    float minX;
+    float maxX;
+    float minY;
+    float maxY;
+    float moveX;
+    float moveY;  
+};
+typedef struct Ball balls;
 
 int shapeState;
 int width = 800;
 int height = 600;
+float screenRatio = (float)width / (float)height;
+
+// //position offset
+// float xPositionRight = 0.95f;
+// float yPositionRight = 0.0f;   
+
+// float xPositionLeft = -0.95f;
+// float yPositionLeft = 0.0f;
+
+// float xPositionBall = 0.0f;
+// float yPositionBall = 0.0f;
 
 float paddles[]
 {
     //Paddles
-    0.05f,  0.25f, 0.0f,  // top right
-    0.05f, -0.25f, 0.0f,  // bottom right
-    -0.05f, -0.25f, 0.0f,  // bottom left
+    0.05f,  0.25f, 0.0f,    // top right
+    0.05f, -0.25f, 0.0f,    // bottom right
+    -0.05f, -0.25f, 0.0f,   // bottom left
     -0.05f,  0.25f, 0.0f,   // top left 
 };
 
@@ -56,10 +72,51 @@ float ball[]
     -0.05f, 0.05f, 0.0f
 };
 
-float screenRatio = (float)width / (float)height;
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void processInput(GLFWwindow *window, Paddle& rightPaddle, Paddle& leftPaddle);
+void debugPrint(Paddle& rightPaddle, Paddle& leftPaddle, Ball& ball);
+
+void checkBallPaddleCollision(Paddle& rightPaddle, Paddle& leftPaddle,
+                              Ball& ball, float previousX);
+void checkBallBoundsCollision(Ball& ball);
+void updateHitBox(Paddle& rightPaddle, Paddle& leftPaddle, Ball& ball);
+bool handleGoal(Ball& ball, int& leftScore, int& rightScore);
+
+void ballMovement(Ball& ball);
 
 int main()
 {
+    Paddle leftPaddle = 
+    {
+        -0.95f, //x
+        0.0f,   //y
+        -1.00f, //minX
+        -0.90f, //maxX
+        -0.25f, //minY
+        0.25f,  //maxY
+        0.015f, //movespeed
+    };
+    Paddle rightPaddle = 
+    {
+        0.95f,  //x
+        0.0f,   //y
+        0.90f,  //minX
+        1.00f,  //maxX
+        -0.25f, //minY
+        0.25f,  //maxY
+        0.015f, //movespeed
+    };
+    Ball ball =
+    {
+        0.0f,   //x
+        0.0f,   //y
+        -0.05f, //minX
+        0.05f,  //maxX
+        -0.05f, //minY
+        0.05f,  //maxY
+        0.01f,  //moveX
+        0.01f   //moveY
+    };
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -92,9 +149,9 @@ int main()
     float vertices[] = 
     {
         //Paddles
-        0.05f,  0.25f, 0.0f,  // top right
-        0.05f, -0.25f, 0.0f,  // bottom right
-        -0.05f, -0.25f, 0.0f,  // bottom left
+        0.05f,  0.25f, 0.0f,    // top right
+        0.05f, -0.25f, 0.0f,    // bottom right
+        -0.05f, -0.25f, 0.0f,   // bottom left
         -0.05f,  0.25f, 0.0f,   // top left 
         //Ball
         0.05f, 0.05f, 0.0f,
@@ -102,10 +159,6 @@ int main()
         -0.05f, -0.05f, 0.0f,
         -0.05f, 0.05f, 0.0f
     };
-
-    std::memcpy(rightHitBox, paddles, sizeof(paddles));
-    std::memcpy(leftHitBox, paddles, sizeof(paddles));
-    std::memcpy(ballHitBox, ball, sizeof(ball));
 
     unsigned int indices[]
     {
@@ -145,15 +198,42 @@ int main()
     // glBufferData(GL_ARRAY_BUFFER, sizeof(verticesSquare), verticesSquare, GL_STATIC_DRAW);
     // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     // glEnableVertexAttribArray(0);  
-    
-    debugPrint(&xPositionRight, &yPositionRight, &xPositionLeft, &yPositionLeft, &xPositionBall, &yPositionBall);
+
+    int leftScore = 0;
+    int rightScore = 0;
+    bool debugEnabled = false;
+    bool dWasPressed = false;
+    double lastDebugPrint = -0.25;
 
     //rendering loop
     while (!glfwWindowShouldClose(window))
     {
-        processInput(window);
-        checkBoundsCollision(&xPositionRight, &yPositionRight, &xPositionLeft, &yPositionLeft, &xPositionBall, &yPositionBall);
-        ballMovement(&xPositionBall, &yPositionBall);
+        processInput(window, rightPaddle, leftPaddle);
+
+        const bool dPressed = glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS;
+        if (dPressed && !dWasPressed)
+            debugEnabled = !debugEnabled;
+        dWasPressed = dPressed;
+
+        const float previousX = ball.x;
+        ballMovement(ball);
+        updateHitBox(rightPaddle, leftPaddle, ball);
+
+        checkBallBoundsCollision(ball);
+        updateHitBox(rightPaddle, leftPaddle, ball);
+
+        checkBallPaddleCollision(rightPaddle, leftPaddle, ball, previousX);
+        updateHitBox(rightPaddle, leftPaddle, ball);
+
+        if (handleGoal(ball, leftScore, rightScore))
+            updateHitBox(rightPaddle, leftPaddle, ball);
+
+        const double now = glfwGetTime();
+        if (debugEnabled && now - lastDebugPrint >= 0.25)
+        {
+            debugPrint(rightPaddle, leftPaddle, ball);
+            lastDebugPrint = now;
+        }
 
         glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -164,16 +244,16 @@ int main()
         //Paddles
         shapeState = 1;
         glUniform1f(shapeWho, shapeState);
-        glUniform2f(position, xPositionRight, yPositionRight);
+        glUniform2f(position, rightPaddle.x, rightPaddle.y);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         glUniform1f(shapeWho, shapeState);
-        glUniform2f(position, xPositionLeft, yPositionLeft);
+        glUniform2f(position, leftPaddle.x, leftPaddle.y);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         //Ball
         shapeState = 0;
         glUniform1f(shapeWho, shapeState);
-        glUniform2f(position, xPositionBall, yPositionBall);
+        glUniform2f(position, ball.x, ball.y);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(6 * sizeof(unsigned int)));
 
         glfwSwapBuffers(window);
@@ -190,102 +270,131 @@ int main()
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-    screenRatio = (float)width / (float)height;
+    if (width > 0 && height > 0)
+        screenRatio = static_cast<float>(width) / static_cast<float>(height);
     glViewport(0,0,width,height);
 }
 
-void checkBoundsCollision(float* xPositionRight, float* yPositionRight, float* xPositionLeft, float* yPositionLeft, float* xPositionBall, float* yPositionBall)
+void checkBallBoundsCollision(Ball& ball)
 {
-    if (*yPositionBall >= 0.76f)
+    const float halfHeight = 0.05f / screenRatio;
+
+    if (ball.maxY >= 1.0f)
     {
-        std::cout << "\nyPositionBall at upper bounds." << std::endl;
-        *yPositionBall = 0.75f;
+        ball.y = 1.0f - halfHeight;
+        ball.moveY = -std::abs(ball.moveY);
     }
-    if (*yPositionBall <= -0.76f)
+    else if (ball.minY <= -1.0f)
     {
-        std::cout << "\nyPositionBall at lower bounds." << std::endl;
-        *yPositionBall = -0.75f;
-    }
-    if (*xPositionBall >= 0.95f)
-    {
-        std::cout << "\nGOAL FOR LEFT PADDLE" << std::endl;
-        *xPositionBall = 0.00f;
-    }
-    if (*xPositionBall <= -0.95f)
-    {
-        std::cout << "\nGOAL FOR RIGHT PADDLE" << std::endl;
-        *xPositionBall = 0.00f;
+        ball.y = -1.0f + halfHeight;
+        ball.moveY = std::abs(ball.moveY);
     }
 }
 
-State checkBallCollision(float* xPositionPaddle, float* yPositionPaddle, float* xPositionBall, float*yPositionBall)
+void checkBallPaddleCollision(Paddle& rightPaddle, Paddle& leftPaddle,
+                              Ball& ball, float previousX)
 {
-    float result;
-    //distance formula
-    result = sqrt(pow((*xPositionPaddle - *xPositionBall), 2) - 
-             pow((*yPositionPaddle - *yPositionBall), 2));
-    
-    /*
-    The idea with this collision system is to find the distance between the bvall and a paddle, then if the result is 0, that indicates a collision
-    This system works in states, like an elevator.
-    */
-    if (result <= 0.00f)
+    const float halfWidth = 0.05f / screenRatio;
+
+    // Only a crossing of the paddle's front face can save the ball.
+    if (ball.moveX > 0.0f &&
+        previousX + halfWidth <= rightPaddle.minX &&
+        ball.maxX >= rightPaddle.minX &&
+        ball.maxY >= rightPaddle.minY &&
+        ball.minY <= rightPaddle.maxY)
     {
-        if (*xPositionBall > 0.00f) //right collision
-        {
-            return rightPaddleCollision;
-        }
-        return leftPaddleCollision; //assume left collision
+        ball.x = rightPaddle.minX - halfWidth;
+        ball.moveX = -ball.moveX;
     }
-    return noCollision;
-}
-
-void ballMovement(float* xPositionBall, float* yPositionBall, State state)
-{
-    float xVelocity = 0.01f;
-    float yVelocity = 0.01f;
-
-    if (state == rightPaddleCollision || state == leftPaddleCollision)
+    else if (ball.moveX < 0.0f &&
+             previousX - halfWidth >= leftPaddle.maxX &&
+             ball.minX <= leftPaddle.maxX &&
+             ball.maxY >= leftPaddle.minY &&
+             ball.minY <= leftPaddle.maxY)
     {
-        xVelocity *= -1.00f;
-        yVelocity *= -1.00f;
-        state = noCollision;
-    }
-    //*yPositionBall += 0.01f;
-    //*xPositionBall += -0.01f;
-    //*xPositionBall += xVelocity;
-    //Figure out y-axis collision later
-    // if (*yPositionBall > 0.00f) {*yPositionBall += -0.00f;}
-    // else {*yPositionBall += 0.01f;}
-}
-
-void makeHitBox(float* xPosition, float* yPosition, float vertices[])
-{
-    int i;
-    for (i = 0; i < 4; i++)
-    {
-        vertices[i] += (*xPosition + *yPosition);        
+        ball.x = leftPaddle.maxX + halfWidth;
+        ball.moveX = -ball.moveX;
     }
 }
 
-void processInput(GLFWwindow *window)
+bool handleGoal(Ball& ball, int& leftScore, int& rightScore)
+{
+    const bool rightGoal = ball.minX > 1.0f;
+    const bool leftGoal = ball.maxX < -1.0f;
+
+    if (!rightGoal && !leftGoal)
+        return false;
+
+    if (rightGoal)
+        ++leftScore;
+    else
+        ++rightScore;
+
+    std::cout << (rightGoal ? "Left" : "Right")
+              << " scored | Left: " << leftScore
+              << " | Right: " << rightScore << std::endl;
+
+    ball.x = 0.0f;
+    ball.y = 0.0f;
+    ball.moveX = rightGoal ? 0.01f : -0.01f;
+    ball.moveY = 0.01f;
+
+    return true;
+}
+
+void ballMovement(Ball& ball)
+{
+    ball.x += ball.moveX;
+    ball.y += ball.moveY;
+}
+
+void updateHitBox(Paddle& rightPaddle, Paddle& leftPaddle, Ball& ball)
+{
+    const float halfWidth = 0.05f / screenRatio;
+    const float paddleHalfHeight = 0.25f / screenRatio;
+
+    rightPaddle.minX = rightPaddle.x - halfWidth;
+    rightPaddle.maxX = rightPaddle.x + halfWidth;
+    rightPaddle.minY = rightPaddle.y - paddleHalfHeight;
+    rightPaddle.maxY = rightPaddle.y + paddleHalfHeight;
+
+    leftPaddle.minX = leftPaddle.x - halfWidth;
+    leftPaddle.maxX = leftPaddle.x + halfWidth;
+    leftPaddle.minY = leftPaddle.y - paddleHalfHeight;
+    leftPaddle.maxY = leftPaddle.y + paddleHalfHeight;
+
+    ball.minX = ball.x - halfWidth;
+    ball.maxX = ball.x + halfWidth;
+    ball.minY = ball.y - halfWidth;
+    ball.maxY = ball.y + halfWidth;
+}
+
+void processInput(GLFWwindow *window, Paddle& rightPaddle, Paddle& leftPaddle)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(window, true);
         std::cout << "\nClosing Window...\n";
     }
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS && yPositionRight < 0.75f) yPositionRight += 0.015f;
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS && yPositionRight > -0.75f) yPositionRight -= 0.015f;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS && yPositionLeft < 0.75f) yPositionLeft += 0.015f;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS && yPositionLeft > -0.75f) yPositionLeft -= 0.015f;
-    debugPrint(&xPositionRight, &yPositionRight, &xPositionLeft, &yPositionLeft, &xPositionBall, &yPositionBall);
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+        rightPaddle.y += rightPaddle.moveSpeed;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        rightPaddle.y -= rightPaddle.moveSpeed;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        leftPaddle.y += leftPaddle.moveSpeed;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        leftPaddle.y -= leftPaddle.moveSpeed;
+
+    const float limit = std::max(0.0f, 1.0f - 0.25f / screenRatio);
+    rightPaddle.y = std::clamp(rightPaddle.y, -limit, limit);
+    leftPaddle.y = std::clamp(leftPaddle.y, -limit, limit);
 }
 
-void debugPrint(float* xPositionRight, float* yPositionRight, float* xPositionLeft, float* yPositionLeft, float* xPositionBall, float* yPositionBall)
+void debugPrint(Paddle& rightPaddle, Paddle& leftPaddle, Ball& ball)
 {
-    std::cout << 
-    "\r\033[KxPositionRight: " << *xPositionRight << " | yPositionRight: " << *yPositionRight <<
-    " | xPositionLeft: " << *xPositionLeft << "  | yPositionLeft: " << *yPositionLeft <<
-    " | xPositionBall: " << *xPositionBall << "  | yPositionBall: " << *yPositionBall << std::flush;
+    std::cout << "DEBUG | Left Y: " << leftPaddle.y
+              << " | Right Y: " << rightPaddle.y
+              << " | Ball: (" << ball.x << ", " << ball.y << ')'
+              << " | Movement: (" << ball.moveX << ", " << ball.moveY << ')'
+              << std::endl;
 }
